@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+
+<!-- three.js library -->
+<script src='../examples/vendor/three.js/build/three.min.js'></script>
+
+<script src="../examples/vendor/three.js/examples/js/libs/stats.min.js"></script>
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+
+
+<body style='margin : 0px; overflow: hidden; font-family: Monospace;'>
+
+<!-- ar.js -->
+<script src="../build/ar.js"></script>
+<script>THREEx.ArToolkitContext.baseURL = '../'</script>
+
+
+
+<style>
+#heading {
+    position : absolute;
+    text-align : center;
+    width : 100vw;
+    bottom : 80vh;
+	z-index: 1;
+}
+
+</style>
+</head>
+<body> 
+
+<div id='heading'>
+	
+	<span  id='text' style ="color:black;text-align:center;background:white"> The color is :  </span>
+
+<div/>
+
+<script>
+
+var state=0;
+
+var renderer, scene, camera;
+var stats;
+var arToolKitSource, arToolKitContext;
+var markerHiro = new THREE.Group();
+
+var omega = 0 ,ang = 0;
+
+var pickables;
+var isActive = false;
+
+init();
+animate();
+
+function color(angle){
+
+	angle = angle%(Math.PI*2);
+	if( angle >0 && angle < Math.PI*2/3){
+		$('#text').text('The color is : blue');
+		$('#text').css('color', 'blue');
+	}
+	else if( angle >- Math.PI*2/3 && angle < Math.PI*4/3){
+		$('#text').text('The color is : green');
+		$('#text').css('color', 'green');
+	}
+	else if( angle >- Math.PI*4/3 && angle < Math.PI*2 ){
+		$('#text').text('The color is : red');
+		$('#text').css('color', 'red');
+	}
+}
+
+function init() {
+	clock = new THREE.Clock();
+	// init renderer
+	renderer	= new THREE.WebGLRenderer({
+		// antialias	: true,
+		alpha: true
+	});
+	renderer.setClearColor(new THREE.Color('lightgrey'), 0)
+	// renderer.setPixelRatio( 1/2 );
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.domElement.style.position = 'absolute'
+	renderer.domElement.style.top = '0px'
+	renderer.domElement.style.left = '0px'
+	document.body.appendChild( renderer.domElement );
+
+	stats = new Stats();
+	document.body.appendChild( stats.dom );
+
+	// init scene and camera
+	scene	= new THREE.Scene();
+	camera = new THREE.PerspectiveCamera(50,window.innerWidth/window.innerHeight,1,1000);
+	scene.add(camera);
+	//camera.position.x = 2;
+	
+	////////////////////////////////////////////////////////////////////////////////
+	//          handle arToolkitSource
+	////////////////////////////////////////////////////////////////////////////////
+
+	arToolkitSource = new THREEx.ArToolkitSource({
+		// to read from the webcam 
+		sourceType : 'webcam',
+	})
+
+	arToolkitSource.init(function onReady(){
+		onResize();
+	})
+	
+	// handle resize
+	window.addEventListener('resize', function(){
+		onResize()
+	})
+	function onResize(){
+		arToolkitSource.onResize()	
+		arToolkitSource.copySizeTo(renderer.domElement)	
+		if( arToolkitContext.arController !== null ){
+			arToolkitSource.copySizeTo(arToolkitContext.arController.canvas)	
+		}	
+	}
+	////////////////////////////////////////////////////////////////////////////////
+	//          initialize arToolkitContext
+	////////////////////////////////////////////////////////////////////////////////
+	
+	arToolkitContext = new THREEx.ArToolkitContext({
+		cameraParametersUrl: THREEx.ArToolkitContext.baseURL + '../data/data/camera_para.dat',
+		detectionMode: 'mono',
+		maxDetectionRate: 30,
+		canvasWidth: 80*3,
+		canvasHeight: 60*3,
+	})
+	// initialize it
+	arToolkitContext.init(function onCompleted(){
+		// copy projection matrix to camera
+		camera.projectionMatrix.copy( arToolkitContext.getProjectionMatrix() );
+	})
+
+	markerHiro = addMarkerHiro();
+	scene.add (markerHiro); 
+		
+	/////////////////////////////
+
+	let loader = new THREE.TextureLoader();
+	loader.setCrossOrigin( "Anonymous");
+	let texture = loader.load ('https://i.imgur.com/e1dDTLD.png');
+	
+    var circle = new THREE.Mesh (new THREE.CircleGeometry (0.05,30), new THREE.MeshBasicMaterial(
+	{
+		map : texture,
+		alphaTest: 0.5,
+		side:THREE.DoubleSide
+	}));
+	scene.add (circle);
+	
+	circle.position.z = -1;
+	circle.position.x = 0.2;
+	
+	pickables = [circle];
+
+	window.addEventListener('resize', onWindowResize, false);
+	window.addEventListener('mousedown', onDocumentMouseDown, false);
+	window.addEventListener('mouseup', onDocumentMouseUp, false);
+	
+}
+
+function onWindowResize() {
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+var myColor = 0;
+
+
+function onDocumentMouseDown(event) {
+	event.preventDefault();
+	
+	// NDC: [-1,1]x[-1,1]
+	let mouse = new THREE.Vector2();
+	let raycaster = new THREE.Raycaster();
+
+	mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+	mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  
+	raycaster.setFromCamera(mouse, camera);
+	var intersects = raycaster.intersectObjects(pickables);
+
+	if (event.button === 0) { // left button
+		if (intersects.length > 0){
+			isActive = ! isActive;
+			state+=1;		
+		 }
+	}
+}
+
+function onDocumentMouseUp(event) {
+	event.preventDefault();
+	
+	// NDC: [-1,1]x[-1,1]
+	let mouse = new THREE.Vector2();
+	let raycaster = new THREE.Raycaster();
+
+	mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+	mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  
+	raycaster.setFromCamera(mouse, camera);
+	var intersects = raycaster.intersectObjects(pickables);
+
+	if (event.button === 0) { // left button
+		if (intersects.length > 0){
+			isActive = ! isActive;
+			state+=1;
+		}
+	}
+}
+
+function initial(){
+	ang = 0;
+	for (let i = 0; i < 3; i++)
+	markerHiro.children[i].rotation.z = 0;
+	state = 1;
+	omega = 0;
+}
+
+function addMarkerHiro(){
+	var markerRoot = new THREE.Group();
+	
+	var artoolkitMarker = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
+		type : 'pattern',
+		patternUrl : THREEx.ArToolkitContext.baseURL + '../data/data/patt.hiro'
+	})
+
+	// add round
+	
+	let geometry0 = new THREE.CircleGeometry( 2.222, 32, Math.PI/2*3, 2*Math.PI/3); 
+	let material0 = new THREE.MeshBasicMaterial( { color: 0xff0000, side: THREE.DoubleSide} );
+	let circle0 = new THREE.Mesh( geometry0, material0 );
+	markerRoot.add( circle0 );  
+
+	let geometry1 = new THREE.CircleGeometry( 2.222, 32, Math.PI/6, 2*Math.PI/3);	
+	let material1 = new THREE.MeshBasicMaterial( { color: 0x00ff00, side: THREE.DoubleSide } );
+	let circle1 = new THREE.Mesh( geometry1, material1 );
+	markerRoot.add( circle1 );  
+	   
+	let geometry2 = new THREE.CircleGeometry( 2.222, 32, Math.PI/3*2.5, 2*Math.PI/3);	
+	let material2 = new THREE.MeshBasicMaterial( { color: 0x0000ff ,side: THREE.DoubleSide } );
+	let circle2 = new THREE.Mesh( geometry2, material2 );
+	markerRoot.add( circle2 );  
+	
+	circle0.rotation.x = Math.PI/2;
+	circle1.rotation.x = Math.PI/2;
+	circle2.rotation.x = Math.PI/2;
+	
+	// add pointer
+
+	var geometry = new THREE.Geometry();
+	geometry.vertices= [new THREE.Vector3(1/4,3.5/4,0), new THREE.Vector3(2/4,0.5/4,0), new THREE.Vector3(0,0.5/4,0)]; 
+	geometry.faces = [new THREE.Face3(1,0,2)];
+	var mesh= new THREE.Mesh( geometry, new THREE.MeshBasicMaterial({color: 0xffffff,polygonOffset: true,polygonOffsetFactor: -1.0,
+		polygonOffsetUnits: -4.0 }) );
+	
+	mesh.position.set(-0.25,0,0.4);
+	mesh.rotation.x = -Math.PI/2;
+	markerRoot.add(mesh);
+	
+	return markerRoot;
+}	
+
+function clamp (x, xLo, xHi) {
+	if (x < xLo) return xLo;
+	if (x > xHi) return xHi;
+	else return x;
+}
+
+function animate() {
+	if(state===3){
+		initial();
+	}
+	var dt = 0.2;
+	var maxOmega = 10;
+	if (isActive) {
+		omega = omega + .15*dt;  
+	} else {
+		omega = omega - .3*dt;    
+	}
+	omega = clamp (omega, 0, maxOmega);
+	ang += omega*dt;
+	
+	for (let i = 0; i < 3; i++)markerHiro.children[i].rotation.z = ang;
+	color(ang);
+	
+	requestAnimationFrame (animate);
+	stats.update();
+	
+	if( arToolkitSource.ready === false )	return;
+	arToolkitContext.update( arToolkitSource.domElement )
+	
+	renderer.render (scene, camera);	
+}
+
+</script></body></html>
