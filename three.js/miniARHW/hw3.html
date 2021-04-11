@@ -194,6 +194,7 @@ function onDocumentTouchStart(event) {
 		}
 	
 	}
+
 }
 
 function onDocumentTouchEnd(event) {
@@ -201,11 +202,16 @@ function onDocumentTouchEnd(event) {
         let raycaster = new THREE.Raycaster();
 		event.preventDefault();
 		var touches = event.changedTouches;
-		//mouse.x = ( event.touches[0].pageX / window.innerWidth ) * 2 - 1;
-		//mouse.y = - ( event.touches[0].pageY / window.innerHeight ) * 2 + 1;
+		mouse.x = ( event.touches[0].pageX / window.innerWidth ) * 2 - 1;
+		mouse.y = - ( event.touches[0].pageY / window.innerHeight ) * 2 + 1;
+	
+		raycaster.setFromCamera(mouse, camera);
 
-		isActive = ! isActive;
-		state+=1;
+		var intersects = raycaster.intersectObject( pickables );
+		if (intersects.length > 0) {
+			isActive = ! isActive;
+			state+=1;	
+		}
 		
 }
 
