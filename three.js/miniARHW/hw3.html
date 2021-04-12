@@ -46,7 +46,6 @@ var renderer, scene, camera;
 var stats;
 var arToolKitSource, arToolKitContext;
 var markerHiro = new THREE.Group();
-
 var omega = 0 ,ang = 0;
 
 var pickables;
@@ -142,22 +141,7 @@ function init() {
 		
 	/////////////////////////////
 
-	let loader = new THREE.TextureLoader();
-	loader.setCrossOrigin( "Anonymous");
-	let texture = loader.load ('https://i.imgur.com/e1dDTLD.png');
 	
-    var circle = new THREE.Mesh (new THREE.CircleGeometry (0.05,30), new THREE.MeshBasicMaterial(
-	{
-		map : texture,
-		alphaTest: 0.5,
-		side:THREE.DoubleSide
-	}));
-	scene.add (circle);
-	circle.position.y = 0.1;
-	circle.position.z = -1;
-	circle.position.x = 0.2;
-	
-	pickables = [circle];
 
 	window.addEventListener('resize', onWindowResize, false);
 	window.addEventListener('mousedown', onDocumentMouseDown, false);
@@ -196,7 +180,6 @@ function onDocumentTouchStart(event) {
 }
 
 function onDocumentTouchEnd(event) {
-
 	event.preventDefault();
 	if (isActive) {
 		isActive = ! isActive;
@@ -242,16 +225,17 @@ function onDocumentMouseUp(event) {
 
 	if (event.button === 0) { // left button
 		if (intersects.length > 0){
-			isActive = ! isActive;
-			state+=1;
+			if(isActive){
+				isActive = ! isActive;
+				state+=1;
+			}
 		}
 	}
 }
 
 function initial(){
 	ang = 0;
-	for (let i = 0; i < 3; i++)
-	markerHiro.children[i].rotation.z = 0;
+	markerHiro.children[3].rotation.z = 0;
 	state = 1;
 	omega = 0;
 }
@@ -288,14 +272,31 @@ function addMarkerHiro(){
 	// add pointer
 
 	var geometry = new THREE.Geometry();
-	geometry.vertices= [new THREE.Vector3(1/4,3.5/4,0), new THREE.Vector3(2/4,0.5/4,0), new THREE.Vector3(0,0.5/4,0)]; 
+	geometry.vertices= [new THREE.Vector3(0,3.5/6,0), new THREE.Vector3(0.5/6,0,0), new THREE.Vector3(-0.5/6,0,0)]; 
 	geometry.faces = [new THREE.Face3(1,0,2)];
-	var mesh= new THREE.Mesh( geometry, new THREE.MeshBasicMaterial({color: 0xffffff,polygonOffset: true,polygonOffsetFactor: -1.0,
+	var pointer= new THREE.Mesh( geometry, new THREE.MeshBasicMaterial({color: 0xffffff,polygonOffset: true,polygonOffsetFactor: -1.0,
 		polygonOffsetUnits: -4.0 }) );
 	
-	mesh.position.set(-0.25,0,0.4);
-	mesh.rotation.x = -Math.PI/2;
-	markerRoot.add(mesh);
+	pointer.position.set(0,0,0);
+	pointer.rotation.x = -Math.PI/2;
+	markerRoot.add(pointer);
+	
+	//////////////////////////
+	let loader = new THREE.TextureLoader();
+	loader.setCrossOrigin( "Anonymous");
+	let texture = loader.load ('https://i.imgur.com/e1dDTLD.png');
+	
+    var circle = new THREE.Mesh (new THREE.CircleGeometry (0.5,30), new THREE.MeshBasicMaterial(
+	{
+		map : texture,
+		alphaTest: 0.5,
+		side:THREE.DoubleSide
+	}));
+	markerRoot.add (circle);
+	circle.rotation.x = -Math.PI/2;
+	circle.position.x = -2.6;
+	
+	pickables = [circle];
 	
 	return markerRoot;
 }	
@@ -315,12 +316,12 @@ function animate() {
 	if (isActive) {
 		omega = omega + .15*dt;  
 	} else {
-		omega = omega - .3*dt;    
+		omega = omega - .4*dt;    
 	}
 	omega = clamp (omega, 0, maxOmega);
 	ang += omega*dt;
 	
-	for (let i = 0; i < 3; i++)markerHiro.children[i].rotation.z = ang;
+	markerHiro.children[3].rotation.z = ang;
 	color(ang);
 	
 	requestAnimationFrame (animate);
