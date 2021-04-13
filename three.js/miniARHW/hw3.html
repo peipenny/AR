@@ -220,11 +220,21 @@ function init() {
 	
 	if (_iOSDevice) {
     	window.addEventListener('touchstart', onTouchStart, false);
+		window.addEventListener('touchend', onTouchEnd, false);
     	// touchend ... use the same callback as mouseup
 	} else {
 		window.addEventListener ('mousedown', onMouseDown, false);
 		window.addEventListener ('mouseup', onMouseUp, false);
     }
+}
+
+function onTouchEnd(event) {
+	event.preventDefault();
+	if (isActive) {
+		isActive = ! isActive;
+		state+=1;	
+	}
+		
 }
 
 function makeRoot() {
@@ -384,6 +394,7 @@ function onMouseDown (event) {
 	pickCompute (ndcX, ndcY);	
 	
 	isActive = true;
+	state+=1;
 }	
 
 function onTouchStart (event) {
@@ -397,9 +408,7 @@ function onTouchStart (event) {
 		pickCompute (ndcX, ndcY);		
 		
 	}
-    else {
-		isActive= false;
-	}
+  
 }	
 
 </script>
