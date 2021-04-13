@@ -66,7 +66,7 @@ class Button {
 		let material = new THREE.MeshBasicMaterial({color: colorString, transparent: true, opacity:0.7});
 		if (map) 
 		   material.map = map;
-		this.mesh = new THREE.Mesh (new THREE.CircleGeometry (size/2, 36), material );
+		this.mesh = new THREE.Mesh (new THREE.CircleGeometry (size, 36), material );
 	    this.mesh.position.set (cx, cy, 0);
 	}
 	
@@ -179,7 +179,7 @@ function init() {
 	})
 
 	arToolkitSource.init(function onReady(){
-		onResize()
+		onResize();
 	})
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -215,7 +215,7 @@ function init() {
 	
 	// handle resize: can be iPAD change orientation
 	window.addEventListener('resize', function(){
-		onResize()
+		onResize();
 	})
 	
 	if (_iOSDevice) {
@@ -343,7 +343,7 @@ function onResize(){
 		console.log ('[onResize] height: ' + renderer.domElement.height)	
 		console.log ('[onResize] whRatio: ' + whRatio)	
 	
-	 halfW = halfH * whRatio;
+	halfW = halfH * whRatio;
 	cameraHUD.left = -halfW;
 	cameraHUD.right = halfW;
 	cameraHUD.top = halfH;
@@ -374,6 +374,7 @@ function pickCompute (ndcX, ndcY) {
 	if (dist < button1.size) {  // distance VS. radius
 		console.log ('picked')
 		isActive = !isActive;
+		state+=1;
 	} else {
 		console.log ('no hit');
 	}
@@ -393,8 +394,8 @@ function onMouseDown (event) {
 
 	pickCompute (ndcX, ndcY);	
 	
-	isActive = true;
-	state+=1;
+	//isActive = true;
+	
 }	
 
 function onTouchStart (event) {
