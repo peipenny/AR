@@ -11,7 +11,6 @@
 <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
 <script src="https://jyunming-chen.github.io/tutsplus/js/KeyboardState.js"></script>
 
-
 <body style='margin : 0px; overflow: hidden; font-family: Monospace;'>
 
 <!-- ar.js -->
@@ -67,15 +66,64 @@ var whRatio, halfW, halfH;
 var button1;
 var _iOSDevice;
 
-//////////////
-var clock;
-
 /////////////
+var uvOffsetArray = [];
+var baseS = 0,
+  baseT = 0;
+var counter = 0;
+var sprite;
 
 
 init();
 animate();
 
+function setUpOffsetArray() {
+  var rowCount = 4; // 4x8 sprites
+  var colCount = 8;
+  for (var i = 0; i < rowCount; i++) {
+    var row = [];
+    for (var j = 0; j < colCount; j++)
+      row.push(new THREE.Vector2(j * 0.125, - 0.25 * i));
+    uvOffsetArray.push(row);
+  }
+}
+
+function buildSprite(texMat) {
+
+	let points = [];
+	points.push(
+		new THREE.Vector3(-15, -15, 0),
+		new THREE.Vector3(15, -15, 0),
+		new THREE.Vector3(15, 15, 0),
+		new THREE.Vector3(-15, 15, 0),
+	);
+
+	var geometry = new THREE.BufferGeometry().setFromPoints(points);
+	
+	let indices = [0,1,2, 0,2,3];
+	geometry.setIndex(indices);
+
+	let uvs = []
+	uvs.push (0,0.75, 0.125,0.75, 0.125,1, 0,1);
+	geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+/*
+	// upper left corner
+	var uv0 = new THREE.Vector2(0.0,0.75);
+	var uv1 = new THREE.Vector2(0.125,0.75);
+	var uv2 = new THREE.Vector2(0.125,1.0);
+	var uv3 = new THREE.Vector2(0.0,1.0);
+  
+  geometry.faceVertexUvs[0].push([uv0, uv1, uv2]);
+  geometry.faceVertexUvs[0].push([uv0, uv2, uv3]);
+*/
+  geometry.computeBoundingSphere();
+  geometry.computeFaceNormals();
+  geometry.computeVertexNormals();
+
+  sprite = new THREE.Mesh(geometry, texMat);
+  scene.add(sprite);
+
+}
 function init() {
 
 	// https://stackoverflow.com/questions/9038625/detect-if-device-is-ios?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
@@ -108,9 +156,8 @@ function init() {
 	// Create a camera
 	camera = new THREE.PerspectiveCamera(50,window.innerWidth/window.innerHeight,1,100);
 	scene.add(camera);
-	var grid = new THREE.GridHelper(150,10,'red','white');
-	scene.add(grid);
-	camera.position.set(0,25,200);
+
+	//camera.position.set(0,25,200);
 	// for HUD scene
 	sceneHUD = new THREE.Scene();
 	
@@ -137,22 +184,7 @@ function init() {
     	},
 
   	);
-	
-	let loader2 = new THREE.TextureLoader();
-	loader2.setCrossOrigin(''); // 重要！
-	loader2.load(
-    	'https://i.imgur.com/GSvJM2K.png',
-    	function(texture) {
-      		console.log ('texture loaded ...')
-			var texMat = new THREE.MeshBasicMaterial({
-				map: texture,
-				transparent: true, 
-				side: THREE.DoubleSide
-			});			
-			var mesh = new THREE.Mesh (new THREE.CircleGeometry (1, 36), texMat );
-			sceneHUD.add (mesh);
-    	},
-  	);
+
 
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -221,32 +253,31 @@ function init() {
     }
 	
 	//////////////////
-	cannon = makeCannon();
-	scene.add (cannon);
-	
-	clock = new THREE.Clock();
-	let barrel = cannon.children[1];
-	barrel.rotation.z = -Math.PI/6; // barrel angle
-	cannon.rotation.y = -Math.PI/6;
-	//ball = new THREE.Mesh (new THREE.SphereGeometry(2,8,8), new THREE.MeshBasicMaterial({color:'yellow',wireframe:true}));
-	ball = new THREE.Mesh (new THREE.CylinderGeometry(.52,2,5,20), new THREE.MeshNormalMaterial());
-	scene.add (ball);
-	//ball.rotation.y = -Math.PI/6;
+
+	 loader = new THREE.TextureLoader();
+
+  // load a resource
+  loader.load(
+    // resource URL
+    'https://i.imgur.com/6ePTx6p.png',
+
+    // Function when resource is loaded
+    function(texture) {
+      // Plane with default texture coordinates [0,1]x[0,1]
+      var texMat = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true, // cutout texture: set transparent: true
+        side: THREE.DoubleSide
+      });
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      buildSprite(texMat);
+    },
+
+  );
+
 }
 
-
-function makeCannon() {
-	let cannon = new THREE.Group();
-	let body = new THREE.Mesh (new THREE.SphereGeometry(
-		10,20,20, Math.PI+Math.PI*0.1,Math.PI*1.8,0,Math.PI/2), new THREE.MeshNormalMaterial());
-	let barrelPart = new THREE.Group();
-	let barrel = new THREE.Mesh (new THREE.CylinderGeometry(2,2,20,18), new THREE.MeshNormalMaterial());
-	barrelPart.add (barrel);
-	barrel.position.y = 10;
- 
-	cannon.add (body, barrelPart);
-	return cannon;
-}
 
 function makeRoot() {
 	
@@ -255,12 +286,38 @@ function makeRoot() {
 		type : 'pattern',
 		patternUrl : THREEx.ArToolkitContext.baseURL + '../data/data/bomb.patt'
 	});
+		
+	let loader2 = new THREE.TextureLoader();
+	loader2.setCrossOrigin(''); // 重要！
+	loader2.load(
+    	'https://i.imgur.com/GSvJM2K.png',
+    	function(texture) {
+      		console.log ('texture loaded ...')
+			var texMat = new THREE.MeshBasicMaterial({
+				map: texture,
+				transparent: true, 
+				side: THREE.DoubleSide
+			});			
+			var mesh = new THREE.Mesh (new THREE.CircleGeometry (0.55, 36), texMat );
+			
+			markerRoot.add(mesh);
+    	},
+  	);
 	
 	return markerRoot;
 }
 
-
+function spriteAnimate() {
+  //console.log (uvOffsetArray[baseS][baseT]);
+  
+	sprite.material.map.offset.copy (uvOffsetArray[baseS][baseT]);  
+  baseT = (baseT + 1) % 8;
+  if (baseT === 0) {
+    baseS = (baseS + 1) % 4;
+  }
+}
 function animate() {
+	
 	
 	stats.update();
 	requestAnimationFrame (animate);
@@ -275,6 +332,14 @@ function animate() {
 	button1.mesh.material.visible = markerRoot.visible;
 	
 	renderer.render (sceneHUD, cameraHUD);
+	
+	if (sprite === undefined)
+  	return;
+    
+	counter++;
+
+	if (counter % 14 === 0)
+		spriteAnimate();
 	
 }
 	
@@ -327,7 +392,6 @@ function onMouseDown (event) {
 	event.preventDefault();
 	let ndcX = (event.clientX / window.innerWidth) * 2 - 1;
 	let ndcY = -(event.clientY / window.innerHeight) * 2 + 1;
-
 	pickCompute (ndcX, ndcY);	
 }	
 
@@ -340,7 +404,6 @@ function onTouchStart (event) {
 		let ndcY = - ( event.touches[0].pageY / window.innerHeight ) * 2 + 1;
 	
 		pickCompute (ndcX, ndcY);		
-		
 	}
   
 }	
@@ -349,7 +412,6 @@ function onTouchEnd(event) {
 	event.preventDefault();
 	if (isActive) {
 		isActive = ! isActive;
-			
 	}
 }
 

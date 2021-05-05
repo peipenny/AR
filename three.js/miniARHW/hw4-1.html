@@ -16,7 +16,6 @@
 var camera, scene, renderer;
 var cannon;
 var clock;
-var ball ;
 var balls =[];
 
 var keyboard = new KeyboardState();
@@ -30,10 +29,10 @@ class Ball {
 		scene.add (this.mesh);
 
 	}
-   ballMotion() {
+   ballMotion(dt) {
 		if (this.pos.y < 0) return;
 		//console.log(this.pos.y);
-		let dt = clock.getDelta();
+		//let dt = clock.getDelta();
 		// Euler's method
 		this.vel.add (this.force.clone().multiplyScalar(dt));
 		this.pos.add (this.vel.clone().multiplyScalar(dt));
@@ -64,7 +63,6 @@ function init() {
 
 	cannon = makeCannon();
 	scene.add (cannon);
-
 	
 	clock = new THREE.Clock();
   
@@ -88,18 +86,26 @@ function makeCannon() {
 	return cannon;
 }
 
-function computeInitPosVel() {
+function makeInitBall (ballmesh) {
+
 	let barrel = cannon.children[1];
 	const SPEED = 25;
-	vel = barrel.localToWorld (new THREE.Vector3(0,20,0)).sub (
+	let vel = barrel.localToWorld (new THREE.Vector3(0,20,0)).sub (
 		barrel.localToWorld (new THREE.Vector3(0,0,0))).setLength (SPEED);
-	pos = barrel.localToWorld (new THREE.Vector3(0,22,0));
-	//force = new THREE.Vector3(0,-10,0);
+	let pos = barrel.localToWorld (new THREE.Vector3(0,22,0));
+
+	let ball = new Ball(pos,vel,ballmesh);
+
+	return ball;
 }
 
 var toggle=0;
 
 function animate() {
+
+	requestAnimationFrame(animate);
+	renderer.render(scene,camera);
+	let dt = clock.getDelta();
 
 	keyboard.update();
 
@@ -122,26 +128,19 @@ function animate() {
 		cannon.children[1].rotation.y += Math.PI/50;
 	}
 	
-	requestAnimationFrame(animate);
-	renderer.render(scene,camera);
 	
 	if (keyboard.down('space')) {
-		let ballmesh = new THREE.Mesh (new THREE.CylinderGeometry(.52,2,5,20), new THREE.MeshNormalMaterial());
-		ballmesh.rotation.z = -Math.PI/3;
-		//computeInitPosVel();
-		let barrel = cannon.children[1];
-		const SPEED = 25;
-		let vel = barrel.localToWorld (new THREE.Vector3(0,20,0)).sub (
-			barrel.localToWorld (new THREE.Vector3(0,0,0))).setLength (SPEED);
-		let pos = barrel.localToWorld (new THREE.Vector3(0,22,0));
-		
-		let ball = new Ball(pos,vel,ballmesh);
+		let ballmesh = new THREE.Mesh (new THREE.SphereGeometry(2,8,8), new THREE.MeshBasicMaterial({color:'yellow',wireframe:true}));
+		//let ballmesh = new THREE.Mesh (new THREE.CylinderGeometry(.52,2,5,20), new THREE.MeshNormalMaterial());
+		//ballmesh.rotation.z = -Math.PI/3;
+		let ball = makeInitBall(ballmesh);		
 		balls.push(ball);
 
 	}
+	
 	for(let i=0 ; i<balls.length ; i++)
-		balls[i].ballMotion();
-		//balls[1].ballMotion();
+		balls[i].ballMotion(dt);
+	
 }
 
 </script>
