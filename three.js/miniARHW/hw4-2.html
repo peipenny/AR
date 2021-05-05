@@ -6,10 +6,13 @@
 <!-- three.js library -->
 <script src='../examples/vendor/three.js/build/three.min.js'></script>
 
-<script src="../examples/vendor/three.js/examples/js/libs/stats.min.js"></script>
-<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
-<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
-<script src="https://jyunming-chen.github.io/tutsplus/js/KeyboardState.js"></script>
+	<script src="../examples/vendor/three.js/examples/js/libs/stats.min.js"></script>
+	<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+	<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+	<script src="https://jyunming-chen.github.io/tutsplus/js/KeyboardState.js"></script>
+	<script src="https://threejs.org/build/three.min.js"></script>
+	<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+
 
 <body style='margin : 0px; overflow: hidden; font-family: Monospace;'>
 
@@ -57,7 +60,7 @@ class Button {
 var keyboard = new KeyboardState();
 var renderer, stats;
 var scene, camera, sceneHUD, cameraHUD;
-var button,isActive = false; 
+var isActive = false; 
 var markerRoot;
 var arToolkitSource, arToolkitContext;
 /////////////
@@ -68,62 +71,53 @@ var _iOSDevice;
 
 /////////////
 var uvOffsetArray = [];
-var baseS = 0,
-  baseT = 0;
-var counter = 0;
+var baseS = 0, baseT = 0;
+var counter = 0 ,count = 0;
 var sprite;
-
+var isActive=0;
 
 init();
 animate();
 
 function setUpOffsetArray() {
-  var rowCount = 4; // 4x8 sprites
-  var colCount = 8;
-  for (var i = 0; i < rowCount; i++) {
-    var row = [];
-    for (var j = 0; j < colCount; j++)
-      row.push(new THREE.Vector2(j * 0.125, - 0.25 * i));
-    uvOffsetArray.push(row);
-  }
+	var rowCount = 4; // 4x8 sprites
+	var colCount = 8;
+	for (var i = 0; i < rowCount; i++) {
+		var row = [];
+		for (var j = 0; j < colCount; j++)
+		row.push(new THREE.Vector2(j * 0.125, - 0.25 * i));
+		uvOffsetArray.push(row);
+  }	
 }
 
 function buildSprite(texMat) {
 
 	let points = [];
 	points.push(
-		new THREE.Vector3(-15, -15, 0),
-		new THREE.Vector3(15, -15, 0),
-		new THREE.Vector3(15, 15, 0),
-		new THREE.Vector3(-15, 15, 0),
+		new THREE.Vector3(-1.5, -1.5, 0),
+		new THREE.Vector3(1.5, -1.5, 0),
+		new THREE.Vector3(1.5, 1.5, 0),
+		new THREE.Vector3(-1.5, 1.5, 0)
 	);
-
 	var geometry = new THREE.BufferGeometry().setFromPoints(points);
-	
+
 	let indices = [0,1,2, 0,2,3];
 	geometry.setIndex(indices);
 
 	let uvs = []
 	uvs.push (0,0.75, 0.125,0.75, 0.125,1, 0,1);
 	geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-/*
-	// upper left corner
-	var uv0 = new THREE.Vector2(0.0,0.75);
-	var uv1 = new THREE.Vector2(0.125,0.75);
-	var uv2 = new THREE.Vector2(0.125,1.0);
-	var uv3 = new THREE.Vector2(0.0,1.0);
-  
-  geometry.faceVertexUvs[0].push([uv0, uv1, uv2]);
-  geometry.faceVertexUvs[0].push([uv0, uv2, uv3]);
-*/
-  geometry.computeBoundingSphere();
-  geometry.computeFaceNormals();
-  geometry.computeVertexNormals();
 
-  sprite = new THREE.Mesh(geometry, texMat);
-  scene.add(sprite);
+	geometry.computeBoundingSphere();
+	geometry.computeFaceNormals();
+	geometry.computeVertexNormals();
 
+	sprite = new THREE.Mesh(geometry, texMat);
+	sprite.position.z +=0.01;
+	//scene.add(sprite);
+	return sprite;
 }
+
 function init() {
 
 	// https://stackoverflow.com/questions/9038625/detect-if-device-is-ios?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
@@ -179,7 +173,7 @@ function init() {
       		console.log ('texture loaded ...')
 			// texture load完，再建button
 			var buttonSize = halfH/3; // radius
-			button1 = new Button (halfW/2, -halfH/2, buttonSize/3, 'white', texture); //position
+			button1 = new Button (halfW/2, -halfH/2, buttonSize, 'white', texture); //position
 			sceneHUD.add (button1.mesh);
     	},
 
@@ -231,7 +225,14 @@ function init() {
 	////////////////////////////////////////////////////////////////////////////////
 	markerRoot = makeRoot();
 	scene.add(markerRoot);
-
+	
+	let localCamera = markerRoot.worldToLocal(new THREE.Vector3(0,0,0));	
+	let point = new THREE.Vector3(0,0,1);
+	let angle = point.angleTo(localCamera);
+	let axis = new THREE.Vector3();
+	axis.crossVectors(point,localCamera).normalize();
+	markerRoot.quaternion.setFromAxisAngle(axis,angle);
+	
 	//////////////////////////////////////////////////////////////////////////////////
 	//		render the whole thing on the page
 	//////////////////////////////////////////////////////////////////////////////////
@@ -245,36 +246,13 @@ function init() {
 	
 	if (_iOSDevice) {
     	window.addEventListener('touchstart', onTouchStart, false);
-		window.addEventListener('touchend', onTouchEnd, false);
-    	// touchend ... use the same callback as mouseup
 	} else {
 		window.addEventListener ('mousedown', onMouseDown, false);
-		window.addEventListener ('mouseup', onMouseUp, false);
+
     }
 	
 	//////////////////
-
-	 loader = new THREE.TextureLoader();
-
-  // load a resource
-  loader.load(
-    // resource URL
-    'https://i.imgur.com/6ePTx6p.png',
-
-    // Function when resource is loaded
-    function(texture) {
-      // Plane with default texture coordinates [0,1]x[0,1]
-      var texMat = new THREE.MeshBasicMaterial({
-        map: texture,
-        transparent: true, // cutout texture: set transparent: true
-        side: THREE.DoubleSide
-      });
-      texture.wrapS = THREE.RepeatWrapping;
-      texture.wrapT = THREE.RepeatWrapping;
-      buildSprite(texMat);
-    },
-
-  );
+	
 
 }
 
@@ -286,7 +264,6 @@ function makeRoot() {
 		type : 'pattern',
 		patternUrl : THREEx.ArToolkitContext.baseURL + '../data/data/bomb.patt'
 	});
-		
 	let loader2 = new THREE.TextureLoader();
 	loader2.setCrossOrigin(''); // 重要！
 	loader2.load(
@@ -304,18 +281,44 @@ function makeRoot() {
     	},
   	);
 	
+	setUpOffsetArray();
+
+	var loader3 = new THREE.TextureLoader();
+
+	loader3.load(
+		'https://i.imgur.com/6ePTx6p.png',
+
+		function(texture) {
+		  var texMat = new THREE.MeshBasicMaterial({
+			map: texture,
+			transparent: true, // cutout texture: set transparent: true
+			side: THREE.DoubleSide,
+		  });
+		  texture.wrapS = THREE.RepeatWrapping;
+		  texture.wrapT = THREE.RepeatWrapping;
+		  markerRoot.add(buildSprite(texMat));
+		},
+	);
+		
+
 	return markerRoot;
 }
 
 function spriteAnimate() {
-  //console.log (uvOffsetArray[baseS][baseT]);
-  
+	
 	sprite.material.map.offset.copy (uvOffsetArray[baseS][baseT]);  
-  baseT = (baseT + 1) % 8;
-  if (baseT === 0) {
-    baseS = (baseS + 1) % 4;
-  }
+	baseT = (baseT + 1) % 8;
+	if (baseT === 0) {
+		baseS = (baseS + 1) % 4;
+	}
+	count++;
+	if(count === 33 ){
+		isActive = 0;
+		baseS = 0;
+		baseT = 0;
+	}
 }
+
 function animate() {
 	
 	
@@ -333,13 +336,14 @@ function animate() {
 	
 	renderer.render (sceneHUD, cameraHUD);
 	
-	if (sprite === undefined)
-  	return;
-    
-	counter++;
-
-	if (counter % 14 === 0)
-		spriteAnimate();
+	if(isActive){
+		if (sprite === undefined)return;
+		counter++;
+		if (counter % 3 === 0)spriteAnimate();
+	}
+	else{
+		count = 0;
+	}
 	
 }
 	
@@ -375,24 +379,21 @@ function pickCompute (ndcX, ndcY) {
 	$('#touch').text ( `[${printStr[0]}]: (${printStr[1]}, ${printStr[2]})`);
 	
 	if (dist < button1.size) {  // distance VS. radius
-		console.log ('picked')
-		isActive = !isActive;
-		state+=1;
+		console.log ('picked');
+		isActive = 1;
+		
 	} else {
 		console.log ('no hit');
 	}
 
 }
 
-function onMouseUp (event) {
-	isActive = false;
-}
-
 function onMouseDown (event) {
 	event.preventDefault();
 	let ndcX = (event.clientX / window.innerWidth) * 2 - 1;
 	let ndcY = -(event.clientY / window.innerHeight) * 2 + 1;
-	pickCompute (ndcX, ndcY);	
+	pickCompute (ndcX, ndcY);
+	
 }	
 
 function onTouchStart (event) {
@@ -405,15 +406,9 @@ function onTouchStart (event) {
 	
 		pickCompute (ndcX, ndcY);		
 	}
-  
+	
 }	
 
-function onTouchEnd(event) {
-	event.preventDefault();
-	if (isActive) {
-		isActive = ! isActive;
-	}
-}
 
 </script>
 </body>
