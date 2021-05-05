@@ -9,6 +9,7 @@
 <script src="../examples/vendor/three.js/examples/js/libs/stats.min.js"></script>
 <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
 <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+<script src="https://jyunming-chen.github.io/tutsplus/js/KeyboardState.js"></script>
 
 
 <body style='margin : 0px; overflow: hidden; font-family: Monospace;'>
@@ -16,8 +17,6 @@
 <!-- ar.js -->
 <script src="../build/ar.js"></script>
 <script>THREEx.ArToolkitContext.baseURL = '../'</script>
-
-
 
 <style>
 #heading {
@@ -32,31 +31,7 @@
 </head>
 <body> 
 
-<div id='heading'>
-	
-	<span  id='text' style ="color:black;text-align:center;background:white"> The color is :  </span>
-
-<div/>
-
 <script>
-
-
-function color(angle){
-
-	angle = angle%(Math.PI*2);
-	if( angle >0 && angle < Math.PI*2/3){
-		$('#text').text('The color is : blue');
-		$('#text').css('color', 'blue');
-	}
-	else if( angle >- Math.PI*2/3 && angle < Math.PI*4/3){
-		$('#text').text('The color is : green');
-		$('#text').css('color', 'green');
-	}
-	else if( angle >- Math.PI*4/3 && angle < Math.PI*2 ){
-		$('#text').text('The color is : red');
-		$('#text').css('color', 'red');
-	}
-}
 
 class Button {
 	constructor (cx, cy, size, colorString = 'yellow', map = null){
@@ -80,18 +55,23 @@ class Button {
 	}
 }
 
+var keyboard = new KeyboardState();
 var renderer, stats;
 var scene, camera, sceneHUD, cameraHUD;
-var mesh, button,isActive = false; 
+var button,isActive = false; 
 var markerRoot;
 var arToolkitSource, arToolkitContext;
 /////////////
+
 var whRatio, halfW, halfH;
 var button1;
 var _iOSDevice;
-var omega = 0 ,ang = 0;
 
-var down = false;
+//////////////
+var clock;
+
+/////////////
+
 
 init();
 animate();
@@ -102,15 +82,12 @@ function init() {
 	let _iOSDevice = !!navigator.platform.match(/iPhone|iPod|iPad/);
 
 	console.log ('iOS: ' + _iOSDevice)
-
-
+	
 	renderer	= new THREE.WebGLRenderer({
 		// antialias	: true,
 		alpha: true
 	});
 	renderer.setClearColor(new THREE.Color('lightgrey'), 0)
- //	renderer.setPixelRatio( 1/2 );
- //   renderer.setPixelRatio (2);
     
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	renderer.domElement.style.position = 'absolute'
@@ -129,9 +106,11 @@ function init() {
 	// init scene and camera
 	scene	= new THREE.Scene();
 	// Create a camera
-	camera = new THREE.Camera();
+	camera = new THREE.PerspectiveCamera(50,window.innerWidth/window.innerHeight,1,100);
 	scene.add(camera);
-	
+	var grid = new THREE.GridHelper(150,10,'red','white');
+	scene.add(grid);
+	camera.position.set(0,25,200);
 	// for HUD scene
 	sceneHUD = new THREE.Scene();
 	
@@ -153,12 +132,28 @@ function init() {
       		console.log ('texture loaded ...')
 			// texture load完，再建button
 			var buttonSize = halfH/3; // radius
-			button1 = new Button (halfW/2, -halfH/2, buttonSize, 'white', texture); //position
+			button1 = new Button (halfW/2, -halfH/2, buttonSize/3, 'white', texture); //position
 			sceneHUD.add (button1.mesh);
     	},
 
   	);
-  
+	
+	let loader2 = new THREE.TextureLoader();
+	loader2.setCrossOrigin(''); // 重要！
+	loader2.load(
+    	'https://i.imgur.com/GSvJM2K.png',
+    	function(texture) {
+      		console.log ('texture loaded ...')
+			var texMat = new THREE.MeshBasicMaterial({
+				map: texture,
+				transparent: true, 
+				side: THREE.DoubleSide
+			});			
+			var mesh = new THREE.Mesh (new THREE.CircleGeometry (1, 36), texMat );
+			sceneHUD.add (mesh);
+    	},
+  	);
+
 	
 	////////////////////////////////////////////////////////////////////////////////
 	//          handle arToolkitSource
@@ -185,7 +180,6 @@ function init() {
 	//          initialize arToolkitContext
 	////////////////////////////////////////////////////////////////////////////////
 	
-
 	// create atToolkitContext
 	arToolkitContext = new THREEx.ArToolkitContext({
 		cameraParametersUrl: THREEx.ArToolkitContext.baseURL + '../data/data/camera_para.dat',
@@ -225,15 +219,33 @@ function init() {
 		window.addEventListener ('mousedown', onMouseDown, false);
 		window.addEventListener ('mouseup', onMouseUp, false);
     }
+	
+	//////////////////
+	cannon = makeCannon();
+	scene.add (cannon);
+	
+	clock = new THREE.Clock();
+	let barrel = cannon.children[1];
+	barrel.rotation.z = -Math.PI/6; // barrel angle
+	cannon.rotation.y = -Math.PI/6;
+	//ball = new THREE.Mesh (new THREE.SphereGeometry(2,8,8), new THREE.MeshBasicMaterial({color:'yellow',wireframe:true}));
+	ball = new THREE.Mesh (new THREE.CylinderGeometry(.52,2,5,20), new THREE.MeshNormalMaterial());
+	scene.add (ball);
+	//ball.rotation.y = -Math.PI/6;
 }
 
-function onTouchEnd(event) {
-	event.preventDefault();
-	if (isActive) {
-		isActive = ! isActive;
-		state+=1;	
-	}
-		
+
+function makeCannon() {
+	let cannon = new THREE.Group();
+	let body = new THREE.Mesh (new THREE.SphereGeometry(
+		10,20,20, Math.PI+Math.PI*0.1,Math.PI*1.8,0,Math.PI/2), new THREE.MeshNormalMaterial());
+	let barrelPart = new THREE.Group();
+	let barrel = new THREE.Mesh (new THREE.CylinderGeometry(2,2,20,18), new THREE.MeshNormalMaterial());
+	barrelPart.add (barrel);
+	barrel.position.y = 10;
+ 
+	cannon.add (body, barrelPart);
+	return cannon;
 }
 
 function makeRoot() {
@@ -241,67 +253,19 @@ function makeRoot() {
 	let markerRoot = new THREE.Group();
 	var artoolkitMarker = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
 		type : 'pattern',
-		patternUrl : THREEx.ArToolkitContext.baseURL + '../data/data/patt.hiro'
-		// patternUrl : THREEx.ArToolkitContext.baseURL + '../data/data/patt.kanji'
-	})
-
-	// add round
+		patternUrl : THREEx.ArToolkitContext.baseURL + '../data/data/bomb.patt'
+	});
 	
-	let geometry0 = new THREE.CircleGeometry( 2.222, 32, Math.PI/2*3, 2*Math.PI/3); 
-	let material0 = new THREE.MeshBasicMaterial( { color: 0xff0000, side: THREE.DoubleSide} );
-	let circle0 = new THREE.Mesh( geometry0, material0 );
-	markerRoot.add( circle0 );  
-
-	let geometry1 = new THREE.CircleGeometry( 2.222, 32, Math.PI/6, 2*Math.PI/3);	
-	let material1 = new THREE.MeshBasicMaterial( { color: 0x00ff00, side: THREE.DoubleSide } );
-	let circle1 = new THREE.Mesh( geometry1, material1 );
-	markerRoot.add( circle1 );  
-	   
-	let geometry2 = new THREE.CircleGeometry( 2.222, 32, Math.PI/3*2.5, 2*Math.PI/3);	
-	let material2 = new THREE.MeshBasicMaterial( { color: 0x0000ff ,side: THREE.DoubleSide } );
-	let circle2 = new THREE.Mesh( geometry2, material2 );
-	markerRoot.add( circle2 );  
-	
-	circle0.rotation.x = Math.PI/2;
-	circle1.rotation.x = Math.PI/2;
-	circle2.rotation.x = Math.PI/2;
-	
-	// add pointer
-
-	var geometry = new THREE.Geometry();
-	geometry.vertices= [new THREE.Vector3(0,3.5/6,0), new THREE.Vector3(0.5/6,0,0), new THREE.Vector3(-0.5/6,0,0)]; 
-	geometry.faces = [new THREE.Face3(1,0,2)];
-	var pointer= new THREE.Mesh( geometry, new THREE.MeshPhongMaterial({color: 0x32a0df,polygonOffset: true,polygonOffsetFactor: -1.0,
-		polygonOffsetUnits: -4.0 }) );
-	
-	
-	pointer.position.set(0,0,0);
-	pointer.rotation.x = -Math.PI/2;
-	markerRoot.add(pointer);
-	
-	var pointLight = new THREE.PointLight (0x888888, 3);
-
-	markerRoot.add (pointLight);
-	
-	var ambient = new THREE.AmbientLight(0xffffff);
-	markerRoot.add(ambient);
-	//////////////////////////
-		
-	//markerRoot.add (mesh);
 	return markerRoot;
 }
 
-function clamp (x, xLo, xHi) {
-	if (x < xLo) return xLo;
-	if (x > xHi) return xHi;
-	else return x;
-}
 
 function animate() {
+	
 	stats.update();
 	requestAnimationFrame (animate);
 	
-	if( arToolkitSource.ready === false )	return
+	if( arToolkitSource.ready === false ) return;
 	arToolkitContext.update( arToolkitSource.domElement )
 
 	renderer.clear();
@@ -311,45 +275,15 @@ function animate() {
 	button1.mesh.material.visible = markerRoot.visible;
 	
 	renderer.render (sceneHUD, cameraHUD);
-
-	var dt = 0.2;
-	var maxOmega = 10;
-	if (isActive) {
-		omega = omega + .15*dt;  
-	} else {
-		omega = omega - .4*dt;    
-	}
-	omega = clamp (omega, 0, maxOmega);
-	ang += omega*dt;
-	markerRoot.children[3].rotation.z = ang;
-
-	markerRoot.children[4].position.copy(markerRoot.children[3].position);
-
-	markerRoot.children[4].position.y= 0.8 ;
-	markerRoot.children[5].position.y= 0.8 ;
-
-	console.log(markerRoot.children[4].position);
-	
-	color(ang);
-
-		
-	if (down) {
-		$('#ratio').text ("down");
-	} else {
-		$('#ratio').text ("up");		
-	}
 	
 }
 	
 function onResize(){
-	arToolkitSource.onResizeElement()	
-	arToolkitSource.copyElementSizeTo(renderer.domElement)	
+	arToolkitSource.onResizeElement();	
+	arToolkitSource.copyElementSizeTo(renderer.domElement);
 	if( arToolkitContext.arController !== null ){
 		arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas)	
 	}	
-	
-	//$('#ratio').text ('resize: width: ' + window.innerWidth + ' height: ' + window.innerHeight)
-	// use 'ratio' to display down/up
 	
 	whRatio = window.innerWidth/window.innerHeight;
 		console.log ('[onResize] width: ' + renderer.domElement.width)	
@@ -362,16 +296,7 @@ function onResize(){
 	cameraHUD.top = halfH;
 	cameraHUD.bottom = -halfH;
 	cameraHUD.updateProjectionMatrix();
-	// ideally, this is needed, 
-	// but commented out gives better result (in Chrome emulator)
-	
-/*	
-  AR world resize: controlled by arToolKit
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-*/  
- // renderer.setSize(window.innerWidth, window.innerHeight);
-//	renderer.setSize (renderer.domElement.width, renderer.domElement.height)	
+
 }
 	
 function pickCompute (ndcX, ndcY) {
@@ -395,26 +320,21 @@ function pickCompute (ndcX, ndcY) {
 }
 
 function onMouseUp (event) {
-	// do nothing yet ...
 	isActive = false;
 }
 
 function onMouseDown (event) {
-	//console.log ('in mouse down')
 	event.preventDefault();
 	let ndcX = (event.clientX / window.innerWidth) * 2 - 1;
 	let ndcY = -(event.clientY / window.innerHeight) * 2 + 1;
 
 	pickCompute (ndcX, ndcY);	
-	
-	//isActive = true;
-	
 }	
 
 function onTouchStart (event) {
 
-   if (event.touches.length == 1) {
-        
+	if (event.touches.length == 1) {
+    
 		event.preventDefault();
 		let ndcX = ( event.touches[0].pageX / window.innerWidth ) * 2 - 1;
 		let ndcY = - ( event.touches[0].pageY / window.innerHeight ) * 2 + 1;
@@ -424,6 +344,14 @@ function onTouchStart (event) {
 	}
   
 }	
+
+function onTouchEnd(event) {
+	event.preventDefault();
+	if (isActive) {
+		isActive = ! isActive;
+			
+	}
+}
 
 </script>
 </body>
