@@ -26,7 +26,7 @@ var markerHiro ,markerKanji;
 var ball , cylinder , state = 0;
 
 var q1, q2;
-var counter,N;
+var counter=0,N=100;
 var balls =[],cannon ;
 
 class Ball {
@@ -128,13 +128,23 @@ function init() {
 	
 	////////////////////////
 	
-	q1 = new THREE.Quaternion(); 
-	q2 = new THREE.Quaternion();
-	
 	markerHiro = addMarkerHiro();
 	scene.add (markerHiro); 
 	markerKanji = addMarkerKanji();
 	scene.add (markerKanji); 
+	
+	makeInitOri();
+
+	
+}
+
+function makeInitOri(){
+
+	let toKanji = markerHiro.worldToLocal(markerKanji.localToWorld(new THREE.Vector3(0,0,0)));
+	q1 = new THREE.Quaternion(); 
+	q2 = new THREE.Quaternion();
+	q1.copy(q2);  // save current (old) orientation
+	q2.setFromUnitVectors(new THREE.Vector3(1, 0, 0), toKanji.clone().normalize());  // compute new oriention
 	
 }
 
@@ -161,12 +171,7 @@ function addMarkerKanji(){
 		type : 'pattern',
 		patternUrl : THREEx.ArToolkitContext.baseURL + '../data/data/patt.kanji'
 	});
-	
-	q1.copy(q2);  // save current (old) orientation
-    q2.setFromUnitVectors(new THREE.Vector3(1, 0, 0), toKanji.clone().normalize());  // compute new oriention
 
-    N = 100;
-    counter = 0;
 			
 	return markerRoot;
 }
@@ -233,12 +238,6 @@ function makeInitBall () {
 }
 
 function animate() {
-	let toKanji = markerHiro.worldToLocal(markerKanji.localToWorld(new THREE.Vector3(0,0,0)));
-    
-	q1 = new THREE.Quaternion(); // null rotation
-	q2 = new THREE.Quaternion();
-	q1.copy(q2);  // save current (old) orientation
-	q2.setFromUnitVectors(new THREE.Vector3(1, 0, 0), toKanji.clone().normalize());  // compute new oriention
 	
 	let dt = clock.getDelta();
 		
@@ -249,21 +248,7 @@ function animate() {
 	for(let j=0 ; j<balls.length ; j++)
 		balls[j].ballMotion(dt);
 	
-	var material = new THREE.LineDashedMaterial({
-		color : 0x00ffff,
-		dashSize: .1,
-		gapSize: .1
-	});
-	
-	var geometry = new THREE.Geometry();
-	geometry.vertices.push(new THREE.Vector3(0,0,0));
-	geometry.vertices.push(new THREE.Vector3(toKanji.x,0,toKanji.z));
-	geometry.computeLineDistances();  // must call this when dash-line is initialized
-	let Line = new THREE.Line(geometry,material); 
-	markerHiro.remove(markerHiro.getObjectByName('interMarkerLine'));
-	Line.name = 'interMarkerLine';
-	markerHiro.add(Line);
-	
+
 	if (counter > N) {
 		return;
 	}
