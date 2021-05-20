@@ -16,7 +16,14 @@
 var camera, scene, renderer;
 var cannon;
 var clock;
-var balls =[];
+var balls =[] ,ballmesh;
+var parabola;
+
+var ball, x0, dx;
+var i = 1;
+var nowPos, prePos;
+var theta, vel;
+
 
 var keyboard = new KeyboardState();
 
@@ -70,7 +77,57 @@ function init() {
 	let barrel = cannon.children[1];
 	barrel.rotation.z = -Math.PI/6; // barrel angle
 	cannon.rotation.y = -Math.PI/6;
+	
+	//////////////////////
+	
+	theta = Math.PI/6*2;
+	vel = 30;
 
+	parabola = makeProjectile (vel, theta);
+	scene.add (parabola);
+	parabola.rotation.y = -Math.PI/6;
+	
+	
+	x0 = 4 - Math.sqrt(30/.125);
+	dx = 2*Math.sqrt(30/.125);
+  
+	nowPos = new THREE.Vector3();
+	prePos = new THREE.Vector3();
+	prePos.set (x0,0,0);
+}
+
+function makeProjectile (v, theta) {
+	const G = 10;
+	const cT = Math.cos(theta);
+	const sT = Math.sin(theta);
+  
+	let a = - G/2/v/v/cT/cT;
+	let b = v*v/G*sT*cT;
+	let c = v*v/2/G*sT*sT;
+
+	return makeParabola (a, b, c);
+  
+}
+
+function makeParabola (a, b, c) {
+	let xRange = Math.sqrt(-a*c)*2/a;
+	const N = 20;
+	let dx = xRange/20;
+  
+	let points = [];
+	let x0 = b - xRange/2;
+	for (let i = 0; i <= N; i++) {
+		xi = x0 + i*dx;
+		yi = a*(xi-b)*(xi-b) + c;
+		points.push (new THREE.Vector3(xi,yi,0));
+	}
+
+	let geometry = new THREE.BufferGeometry().setFromPoints(points);
+	let parabola = new THREE.Line (geometry, new THREE.LineDashedMaterial({color:'cyan'}));
+	parabola.computeLineDistances(); // required for LineDashedMaterial
+
+	return parabola;
+  
 }
 
 function makeCannon() {
@@ -93,53 +150,80 @@ function makeInitBall (ballmesh) {
 	let vel = barrel.localToWorld (new THREE.Vector3(0,20,0)).sub (
 		barrel.localToWorld (new THREE.Vector3(0,0,0))).setLength (SPEED);
 	let pos = barrel.localToWorld (new THREE.Vector3(0,22,0));
-
 	let ball = new Ball(pos,vel,ballmesh);
 
 	return ball;
 }
 
-var toggle=0;
 
 function animate() {
 
 	requestAnimationFrame(animate);
 	renderer.render(scene,camera);
+	
 	let dt = clock.getDelta();
 
 	keyboard.update();
 
 	if (keyboard.down('up')) { 
 		if(cannon.children[1].rotation.z<0){
-			cannon.children[1].rotation.z += Math.PI/50; 
+			cannon.children[1].rotation.z += Math.PI/50;
+			theta += Math.PI/50;
+			if(parabola)scene.remove(parabola);
+			parabola = makeProjectile (vel, theta);
+			scene.add (parabola);
 		}
 	}
 	if (keyboard.down('down')) { 
 		if(cannon.children[1].rotation.z>-Math.PI/2){
-			cannon.children[1].rotation.z -= Math.PI/50; 
+			cannon.children[1].rotation.z -= Math.PI/50;
+			theta -= Math.PI/50;
+			if(parabola)scene.remove(parabola);
+			parabola = makeProjectile (vel, theta);
+			scene.add (parabola);			
 		}
 	}
 	if (keyboard.down('left')) { 
 		cannon.children[0].rotation.y -= Math.PI/50; 
 		cannon.children[1].rotation.y -= Math.PI/50;
+		parabola.rotation.y -= Math.PI/50;
+
 	}
 	if (keyboard.down('right')) { 
 		cannon.children[0].rotation.y += Math.PI/50; 
 		cannon.children[1].rotation.y += Math.PI/50;
+		parabola.rotation.y += Math.PI/50;
 	}
 	
 	
 	if (keyboard.down('space')) {
-		let ballmesh = new THREE.Mesh (new THREE.SphereGeometry(2,8,8), new THREE.MeshBasicMaterial({color:'yellow',wireframe:true}));
-		//let ballmesh = new THREE.Mesh (new THREE.CylinderGeometry(.52,2,5,20), new THREE.MeshNormalMaterial());
-		//ballmesh.rotation.z = -Math.PI/3;
-		let ball = makeInitBall(ballmesh);		
+		//let ballmesh = new THREE.Mesh (new THREE.SphereGeometry(2,8,8), new THREE.MeshBasicMaterial({color:'yellow',wireframe:true}));
+		ballmesh = new THREE.Mesh (new THREE.CylinderGeometry(.52,2,5,20), new THREE.MeshNormalMaterial());
+		
+		ball = makeInitBall(ballmesh);		
 		balls.push(ball);
-
-	}
 	
-	for(let i=0 ; i<balls.length ; i++)
-		balls[i].ballMotion(dt);
+	}
+	//ball.pos.x +=1;
+	
+	let xi = x0 + i*dx/100;
+	let yi = -.125*(xi-4)*(xi-4)+30;
+	if (i > 100) {
+		console.log (yi)
+		return;
+	}
+	/*
+	prePos.copy (nowPos);
+	nowPos.set (xi, yi, 0);
+	ball.pos.copy (nowPos);
+	ballmesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), nowPos.clone().sub(prePos).normalize());
+	
+	++i;
+  	*/
+	
+	for(let j=0 ; j<balls.length ; j++)
+		balls[j].ballMotion(dt);
+	
 	
 }
 
