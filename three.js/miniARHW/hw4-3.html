@@ -2,20 +2,24 @@
 
 <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 
+
 <!-- three.js library -->
 <script src='../examples/vendor/three.js/build/three.min.js'></script>
 <script src="../examples/vendor/three.js/examples/js/libs/stats.min.js"></script>
 <!-- ar.js -->
 <script src="../build/ar.js"></script>
 <script>THREEx.ArToolkitContext.baseURL = '../'</script>
-
+<script src="https://threejs.org/build/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
 <body style='margin : 0px; overflow: hidden; font-family: Monospace;'>
 <div style='position: absolute; top: 10px; width:100%; text-align: center; z-index: 1;'>
 <a href="https://github.com/jeromeetienne/AR.js/" target="_blank">AR.js</a>
 	 - three.js<br>
-
+HW4-3<br><br>
+   
 </div>
-
+<script src="explode.js"></script>
 <script>
 
 // global variables
@@ -23,38 +27,21 @@ var renderer, scene, camera;
 var stats;
 var arToolKitSource, arToolKitContext;
 var markerHiro ,markerKanji;
-var ball , cylinder , state = 0;
+///////////////////////
+
+var castle = new THREE.Object3D();
 
 var q1, q2;
-var counter=0,N=100;
-var balls =[],cannon ;
+var counter,N
+var v = 3, g = 1, theta;
+var far, fire = 0;
+var ball,cannon,target ;
 
-class Ball {
-	constructor (pos, vel,mesh) {
-		this.pos = pos;
-		this.vel = vel;
-		this.force = new THREE.Vector3(0,1,0);
-		this.mesh = mesh;
-		//this.mesh.position.y = 2 ;
-		markerHiro.add(this.mesh);
-		
-		this.pointLight = new THREE.PointLight (0x888888);
-		markerHiro.add (this.pointLight);
-	}
-   ballMotion(dt) {
-
-		//if (this.pos.y <0) return;
-		//console.log(this.mesh.position.y);
-		// Euler's method
-		this.vel.add (this.force.clone().multiplyScalar(dt));
-		this.pos.add (this.vel.clone().multiplyScalar(dt));
-		this.mesh.position.copy (this.pos);
-		this.pointLight.position.copy(this.pos);
-		
-	}
-	
-	
-}
+var barrel;
+var clock;
+var ball, points;
+var pos, vel, force;
+var nowPos, prePos;
 
 init();
 animate();
@@ -127,27 +114,15 @@ function init() {
 	})
 	
 	////////////////////////
+	let light = new THREE.PointLight( 0xffffff, 1);
+    scene.add( light );
 	
 	markerHiro = addMarkerHiro();
 	scene.add (markerHiro); 
 	markerKanji = addMarkerKanji();
 	scene.add (markerKanji); 
 	
-	makeInitOri();
-
-	
 }
-
-function makeInitOri(){
-
-	let toKanji = markerHiro.worldToLocal(markerKanji.localToWorld(new THREE.Vector3(0,0,0)));
-	q1 = new THREE.Quaternion(); 
-	q2 = new THREE.Quaternion();
-	q1.copy(q2);  // save current (old) orientation
-	q2.setFromUnitVectors(new THREE.Vector3(1, 0, 0), toKanji.clone().normalize());  // compute new oriention
-	
-}
-
 	
 function addMarkerHiro(){
 	let markerRoot = new THREE.Group();
@@ -160,6 +135,27 @@ function addMarkerHiro(){
 	cannon = makeCannon();
 	markerRoot.add(cannon);
 	
+	ball = new THREE.Mesh (new THREE.CylinderGeometry(.025,0.07,0.25,20), new THREE.MeshPhongMaterial({color:0xC2C3C9}));
+    
+	markerRoot.add (ball);
+	clock = new THREE.Clock();
+	//// settings //////////////////////
+	barrel = cannon.children[1]
+	barrel.rotation.z = -Math.PI/6; // barrel angle
+	cannon.rotation.y = 0;
+	///////////////////////////////////////////////////////////
+	nowPos = new THREE.Vector3();
+	prePos = new THREE.Vector3();
+	prePos.copy(markerRoot.worldToLocal(barrel.localToWorld (new THREE.Vector3(0,1.8,0))));
+	//////////////////////////////////
+	target = new THREE.Vector3(10, 0, 10);
+	N = 100;
+	counter = 0;
+	//////////////////////////
+	q1 = new THREE.Quaternion(); // null rotation
+	q2 = new THREE.Quaternion();
+	///////////////////////////////
+	computeProjectile();
 	return markerRoot;
 }	
 
@@ -171,10 +167,45 @@ function addMarkerKanji(){
 		type : 'pattern',
 		patternUrl : THREEx.ArToolkitContext.baseURL + '../data/data/patt.kanji'
 	});
+	
+	const geometry = new THREE.CylinderGeometry( .25, .25, .5, 32 );
+	const material = new THREE.MeshPhongMaterial({color:0xF4DD34, side: THREE.DoubleSide});
+	const cylinder = new THREE.Mesh( geometry, material );
 
+	cylinder.position.y	= geometry.parameters.height/4;
+	castle.add (cylinder);
+
+	markerRoot.add (castle);
 			
 	return markerRoot;
 }
+
+function makeCannon() {
+	let cannon = new THREE.Group();
+	let body = new THREE.Mesh (new THREE.SphereGeometry(0.5,20,20, Math.PI+Math.PI*0.1,Math.PI*1.8,0,Math.PI/2),
+		new THREE.MeshNormalMaterial());
+	let barrelPart = new THREE.Group();
+	barrel = new THREE.Mesh (new THREE.CylinderGeometry(0.1,0.1,1,18), new THREE.MeshNormalMaterial());
+	barrelPart.add (barrel);
+	barrel.position.y = 0.5;
+ 
+	cannon.add (body, barrelPart);
+	return cannon;
+}
+
+
+function computeProjectile() {
+	let L = target.length();
+	theta = Math.asin(L*g/v/v)/2;
+	//console.log (L*g/v/v)
+	if (L*g/v/v > 1) {
+		far = 0;
+	} else {
+		far = 1;
+	}
+	barrel.rotation.z = -(Math.PI/2 - theta);
+}
+
 
 function makeProjectile (v, theta) {
 	const G = 10;
@@ -187,6 +218,17 @@ function makeProjectile (v, theta) {
 
 	return makeParabola (a, b, c);
   
+}
+
+function computeInitPosVel() {
+	let L = target.length();
+	const SPEED = L*0.8;
+	barrel.rotation.z = -(Math.PI/2 - theta);
+	vel = markerHiro.worldToLocal(barrel.localToWorld(new THREE.Vector3(0,0.5,0))).sub(markerHiro.worldToLocal(barrel.localToWorld(new THREE.Vector3(0,0,0)))).setLength(SPEED);
+	pos = markerHiro.worldToLocal(barrel.localToWorld (new THREE.Vector3(0,0.5,0)));
+	force = new THREE.Vector3(0,-g ,0);
+	nowPos.copy(pos);
+	prePos.copy(markerHiro.worldToLocal(barrel.localToWorld (new THREE.Vector3(0,1.8,0))));
 }
 
 function makeParabola (a, b, c) {
@@ -210,58 +252,12 @@ function makeParabola (a, b, c) {
   
 }
 
-function makeCannon() {
-	let cannon = new THREE.Group();
-	let body = new THREE.Mesh (new THREE.SphereGeometry(0.5,20,20, Math.PI+Math.PI*0.1,Math.PI*1.8,0,Math.PI/2),
-		new THREE.MeshNormalMaterial());
-	let barrelPart = new THREE.Group();
-	let barrel = new THREE.Mesh (new THREE.CylinderGeometry(0.1,0.1,1,18), new THREE.MeshNormalMaterial());
-	barrelPart.add (barrel);
-	barrel.position.y = 0.5;
- 
-	cannon.add (body, barrelPart);
-	return cannon;
-}
 
-function makeInitBall () {
-	let ballmesh = new THREE.Mesh (new THREE.CylinderGeometry(.052,.2,.5,20), new THREE.MeshPhongMaterial());
-	let barrel = cannon.children[1];
-	const SPEED = 0.1;
-	let vel = barrel.localToWorld (new THREE.Vector3(0,1,0)).sub (
-		barrel.localToWorld (new THREE.Vector3(0,0,0))).setLength (SPEED);
-	let pos = barrel.localToWorld (new THREE.Vector3(0,0,0));
-	let ball = new Ball(pos,vel,ballmesh);
-	balls.push(ball);
-	setTimeout(makeInitBall,1000);
-	//return ball;
-	
-}
 
 function animate() {
 	
-	let dt = clock.getDelta();
-		
-	if(state==0){
-		state = 1;
-		makeInitBall();
-	}
-	for(let j=0 ; j<balls.length ; j++)
-		balls[j].ballMotion(dt);
 	
-
-	if (counter > N) {
-		return;
-	}
-
-	if (counter < N) {
-		let alpha = counter / N;
-		let qm = q1.clone();
-		qm.slerp(q2, alpha);
-		cannon.quaternion.copy(qm);
-		++counter;
-	}	
-	
-	
+	////////////////////////////
 	requestAnimationFrame (animate);
 	stats.update();
 	
@@ -269,6 +265,69 @@ function animate() {
 	arToolkitContext.update( arToolkitSource.domElement )
 	
 	renderer.render (scene, camera);	
+	///////////////////////////////
+	target.copy(markerHiro.worldToLocal(markerKanji.localToWorld(new THREE.Vector3(0,0,0))));
+	target.y = 0;
+
+	computeProjectile();
+	markerHiro.remove (markerHiro.getObjectByName('projectile'));
+	if(far == 1){
+		points = makeProjectile ();
+		points.name = 'projectile';
+		markerHiro.add (points);
+	}
+
+	if (counter < N) {
+		let alpha = counter / N;
+		let qm = q1.clone();
+
+		qm.slerp(q2, alpha);
+		cannon.quaternion.copy(qm);
+		if(far == 1)
+			points.quaternion.copy(qm);
+		//console.log(ballout);
+		++counter;
+	}else{
+		q1.copy(q2);  // save current (old) orientation
+		N = 100;
+		counter = 0;
+		if(fire == 0 && markerKanji.visible === true){
+			fire = 1;
+			computeInitPosVel();
+    		markerHiro.add (ball);
+		}
+		
+	}
+	q2.setFromUnitVectors(new THREE.Vector3(1, 0, 0), target.clone().normalize());  // compute new oriention
+	theta = Math.PI/2 + barrel.rotation.z;
+	
+	if (pos === undefined) {
+		computeInitPosVel();
+		return;
+	}
+
+	if (pos.y < 0 && fire == 1){
+		fire = 0;
+		computeInitPosVel();
+		console.log(ball.position.clone().sub(target).length());
+		if(ball.position.clone().sub(target).length() <= 1.5){
+			setTimeout (spriteAnimate, 0);
+			markerKanji.remove (castle);
+		}
+		markerHiro.remove (ball);
+		return;
+	}
+
+	// Euler's method
+	let dt = clock.getDelta();
+	vel.add (force.clone().multiplyScalar(dt));
+	pos.add (vel.clone().multiplyScalar(dt));
+	ball.position.copy (pos);
+	prePos.copy (nowPos);
+	nowPos.copy (pos);
+	ball.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), nowPos.clone().sub(prePos).normalize());
+	
+	
 }
 
 </script></body>
