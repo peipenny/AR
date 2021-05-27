@@ -81,20 +81,20 @@ function setUpOffsetArray() {
 }
 
 function _spriteAnimate() {
- let msg = `[${baseS}] [${baseT}]`
- console.log (msg);
+	let msg = `[${baseS}] [${baseT}]`
+	console.log (msg);
   
-  sprite.material.map.offset.copy (uvOffsetArray[baseS][baseT]);  
-  baseT = (baseT + 1) % 8;
-  if (baseT === 0) {
-    baseS = (baseS + 1) % 4;
-  }
+	sprite.material.map.offset.copy (uvOffsetArray[baseS][baseT]);  
+	baseT = (baseT + 1) % 8;
+	if (baseT === 0) {
+		baseS = (baseS + 1) % 4;
+	}
   
-  if (baseS !== 3 || baseT !== 7) // NOT (baseS = 3 ^ baseT = 7)
-  	setTimeout (_spriteAnimate, 100); // proceed to next frame
-  else {
-  	sprite.material.map.offset.copy (uvOffsetArray[0][0]);  // back to first frame
-  }
+	if (baseS !== 3 || baseT !== 7) // NOT (baseS = 3 ^ baseT = 7)
+		setTimeout (_spriteAnimate, 100); // proceed to next frame
+	else {
+		sprite.material.map.offset.copy (uvOffsetArray[0][0]);  // back to first frame
+	}
 }
 
 // trigger the animation

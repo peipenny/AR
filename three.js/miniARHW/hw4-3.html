@@ -48,7 +48,7 @@ animate();
 
 function init() {
 
-	clock = new THREE.Clock();
+	
 	// init renderer
 	renderer	= new THREE.WebGLRenderer({
 		// antialias	: true,
@@ -121,7 +121,7 @@ function init() {
 	scene.add (markerHiro); 
 	markerKanji = addMarkerKanji();
 	scene.add (markerKanji); 
-	
+	initSprite(markerKanji);
 }
 	
 function addMarkerHiro(){
@@ -169,7 +169,7 @@ function addMarkerKanji(){
 	});
 	
 	const geometry = new THREE.CylinderGeometry( .25, .25, .5, 32 );
-	const material = new THREE.MeshPhongMaterial({color:0xF4DD34, side: THREE.DoubleSide});
+	const material = new THREE.MeshPhongMaterial({color:0xc771b3, side: THREE.DoubleSide});
 	const cylinder = new THREE.Mesh( geometry, material );
 
 	cylinder.position.y	= geometry.parameters.height/4;
@@ -255,9 +255,7 @@ function makeParabola (a, b, c) {
 
 
 function animate() {
-	
-	
-	////////////////////////////
+
 	requestAnimationFrame (animate);
 	stats.update();
 	
